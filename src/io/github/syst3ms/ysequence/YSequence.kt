@@ -1,6 +1,6 @@
 package io.github.syst3ms.ysequence
 
-class YMatrix(seq: Array<Int>) {
+class YMatrix(vararg seq: Int) {
     private val valueMap : MutableList<MutableList<Int>> = mutableListOf(mutableListOf())
     private val offsetMap : MutableList<MutableList<Int>> = mutableListOf(mutableListOf())
 
@@ -8,9 +8,11 @@ class YMatrix(seq: Array<Int>) {
         private set
     var height: Int = 1
         private set
+    val badRoot : Int
+        get() = width - offsetMap[height - 2][width - 1] - 1
 
     init {
-        valueMap[0].addAll(seq)
+        valueMap[0].addAll(seq.toList())
     }
 
     fun getValue(x: Int, y: Int) = valueMap.getOrNull(y)?.getOrNull(x) ?: 0
@@ -19,7 +21,16 @@ class YMatrix(seq: Array<Int>) {
 
     fun getColumn(c: Int) = valueMap.map { it[c] }
 
-    private fun calculateDifferences() {
+    fun refillMatrix() {
+        val startColumn = valueMap[0].indexOf(0)
+        for (i in (height - 2) downTo 0) {
+            for (j in startColumn until width) {
+                valueMap[i][j] = valueMap[i+1][j] + valueMap[i][j - offsetMap[i][j]]
+            }
+        }
+    }
+
+    fun calculateDifferences() {
         var row : Int
         while (getColumn(width - 1).last() > 1) {
             row = height - 1
@@ -38,7 +49,7 @@ class YMatrix(seq: Array<Int>) {
         }
     }
 
-    private fun copyBadPart(badRoot: Int, times: Int) {
+    fun copyBadPart(badRoot: Int, times: Int) {
         clearColumn(width - 1)
         val badPartWidth = (width - badRoot - 1)
         val newWidth = badRoot + badPartWidth * times
@@ -55,14 +66,14 @@ class YMatrix(seq: Array<Int>) {
         }
     }
 
-    private fun clearColumn(c: Int) {
+    fun clearColumn(c: Int) {
         for (i in 0 until width) {
             valueMap[i][c] = 0
             offsetMap[i][c] = 0
         }
     }
 
-    private fun extend(width: Int, height: Int) {
+    fun extend(width: Int, height: Int) {
         if (this.height < height) {
             repeat(height - this.height) {
                 valueMap.add(Array(width) { 0 }.toMutableList())
@@ -80,4 +91,12 @@ class YMatrix(seq: Array<Int>) {
             this.width = width
         }
     }
+}
+
+fun main() {
+    val mat = YMatrix(1,2,4)
+    val badRoot = mat.badRoot
+    mat.calculateDifferences()
+    mat.copyBadPart(badRoot, 3)
+    mat.refillMatrix()
 }
