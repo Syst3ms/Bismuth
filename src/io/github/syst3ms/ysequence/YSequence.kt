@@ -1,102 +1,95 @@
 package io.github.syst3ms.ysequence
 
-class YMatrix(vararg seq: Int) {
-    private val valueMap : MutableList<MutableList<Int>> = mutableListOf(mutableListOf())
-    private val offsetMap : MutableList<MutableList<Int>> = mutableListOf(mutableListOf())
+fun main() {
+    val seq = arrayOf(1,2,4,5,4)
+    val times = 4
+    var valueMat : Array<Array<Int>> = arrayOf(seq)
+    var offsetMat : Array<Array<Int>> = arrayOf(Array(seq.size) { 0 })
 
-    var width : Int = seq.size
-        private set
-    var height: Int = 1
-        private set
-    val badRoot : Int
-        get() = width - offsetMap[height - 2][width - 1] - 1
-
-    init {
-        valueMap[0].addAll(seq.toList())
-    }
-
-    fun getValue(x: Int, y: Int) = valueMap.getOrNull(y)?.getOrNull(x) ?: 0
-
-    fun getOffset(x: Int, y: Int) = offsetMap.getOrNull(y)?.getOrNull(x) ?: 0
-
-    fun getColumn(c: Int) = valueMap.map { it[c] }
-
-    fun refillMatrix() {
-        val startColumn = valueMap[0].indexOf(0)
-        for (i in (height - 2) downTo 0) {
-            for (j in startColumn until width) {
-                valueMap[i][j] = valueMap[i+1][j] + valueMap[i][j - offsetMap[i][j]]
+    // Calculate differences and offsets
+    var row : Int
+    while (valueMat.getColumn(valueMat.width - 1).last() > 1) {
+        row = valueMat.size - 1
+        valueMat = valueMat.resize(valueMat.width, valueMat.size + 1)
+        offsetMat = offsetMat.resize(offsetMat.width, offsetMat.size + 1)
+        for (i in 0 until valueMat.width) {
+            val rowList = valueMat[row]
+            if (rowList[i] <= 1) {
+                valueMat[row + 1][i] = 0
+                offsetMat[row][i] = 0
+            } else {
+                val parentIndex = rowList.copyOfRange(0, i)
+                        .filterIndexed { j, _ -> !(row > 0 && j < i && j > i - offsetMat[row - 1][i])}
+                        .indexOfLast { it < rowList[i]}
+                valueMat[row + 1][i] = rowList[i] - rowList[parentIndex]
+                offsetMat[row][i] = i - parentIndex
             }
         }
     }
 
-    fun calculateDifferences() {
-        var row : Int
-        while (getColumn(width - 1).last() > 1) {
-            row = height - 1
-            extend(height + 1, width)
-            for (i in 0 until width) {
-                val rowList = valueMap[row]
-                if (rowList[i] <= 1) {
-                    valueMap[row + 1][i] = 0
-                    offsetMap[row][i] = 0
-                } else {
-                    val parentIndex = rowList.subList(0, i).indexOfLast { it < rowList[i]}
-                    valueMap[row + 1][i] = rowList[i] - rowList[parentIndex]
-                    offsetMap[row][i] = i - parentIndex
+    // Find bad root
+    val badRoot = valueMat.width - offsetMat[valueMat.size - 2][valueMat.width - 1] - 1
+
+    // Copy offsets
+    val copyWidth = (offsetMat.width - badRoot - 1)
+    var newWidth = badRoot + copyWidth * times + 1
+    offsetMat = offsetMat.resize(newWidth, offsetMat.size)
+    for (i in 1 until times) {
+        for (j in 0 until copyWidth) {
+            for (k in 0 until offsetMat.size) {
+                offsetMat[k][badRoot + j + copyWidth * i + 1] = offsetMat[k][badRoot + j + 1]
+            }
+        }
+    }
+    offsetMat = offsetMat.resize(offsetMat.width - 1, offsetMat.size)
+
+    // Copy bad part
+    for (i in valueMat.indices) {
+        valueMat[i][valueMat.width - 1] = 0
+    }
+    val badPartWidth = (valueMat.width- badRoot - 1)
+    newWidth = badRoot + badPartWidth * times
+    valueMat = valueMat.resize(newWidth, valueMat.size)
+    val noCopy = valueMat.getColumn(badRoot).indexOfLast { it > 0 }
+    for (i in 1 until times) {
+        for (j in 0 until badPartWidth) {
+            for (k in 0 until valueMat.size) {
+                if (offsetMat[k][badRoot + j] == 0 && !(j == 0 && k == noCopy)) {
+                    valueMat[k][badRoot + j + badPartWidth * i] = valueMat[k][badRoot + j]
                 }
             }
         }
     }
 
-    fun copyBadPart(badRoot: Int, times: Int) {
-        clearColumn(width - 1)
-        val badPartWidth = (width - badRoot - 1)
-        val newWidth = badRoot + badPartWidth * times
-        extend(newWidth, height)
-        val noCopy = getColumn(badRoot).indexOfLast { it > 0 }
-        for (i in 1 until times) {
-            for (j in 0 until badPartWidth) {
-                for (k in 0 until height) {
-                    if (getOffset(j, k) == 0 && !(j == 0 && k == noCopy)) {
-                        valueMap[k][j + badPartWidth * i] = valueMap[k][j]
-                    }
-                }
-            }
+    // Refill matrix
+    val startColumn = valueMat[0].indexOf(0)
+    for (i in (valueMat.size - 2) downTo 0) {
+        for (j in startColumn until valueMat.width) {
+            valueMat[i][j] = valueMat[i+1][j] + valueMat[i][j - offsetMat[i][j]]
         }
     }
 
-    fun clearColumn(c: Int) {
-        for (i in 0 until width) {
-            valueMap[i][c] = 0
-            offsetMap[i][c] = 0
-        }
-    }
-
-    fun extend(width: Int, height: Int) {
-        if (this.height < height) {
-            repeat(height - this.height) {
-                valueMap.add(Array(width) { 0 }.toMutableList())
-                offsetMap.add(Array(width) { 0 }.toMutableList())
-            }
-            this.height = height
-        }
-        if (this.width < width) {
-            for (i in 0 until height) {
-                repeat(width - this.width) {
-                    valueMap[i].add(0)
-                    offsetMap[i].add(0)
-                }
-            }
-            this.width = width
-        }
-    }
+    println(valueMat[0].joinToString(",", "(", ")"))
 }
 
-fun main() {
-    val mat = YMatrix(1,2,4)
-    val badRoot = mat.badRoot
-    mat.calculateDifferences()
-    mat.copyBadPart(badRoot, 3)
-    mat.refillMatrix()
+fun Array<Array<Int>>.getColumn(i: Int) = this.map { it[i] }.toTypedArray()
+
+val Array<Array<Int>>.width : Int
+    get() = this[0].size
+
+fun Array<Array<Int>>.resize(newWidth: Int, newHeight: Int): Array<Array<Int>> {
+    var result = this
+    val height = size
+    val width = this[0].size
+    if (height < newHeight) {
+        result = result.plus(Array(newHeight - height) { Array(width) { 0 } }.toList())
+    } else if (newHeight < height) {
+        result = result.dropLast(height - newHeight).toTypedArray()
+    }
+    if (width < newWidth) {
+        result = result.map { it.plus(Array(newWidth - width) {0}.toList()) }.toTypedArray()
+    } else if (newWidth < width) {
+        result = result.map { it.dropLast(width - newWidth).toTypedArray() }.toTypedArray()
+    }
+    return result
 }
