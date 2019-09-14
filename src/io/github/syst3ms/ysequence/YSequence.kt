@@ -1,8 +1,8 @@
 package io.github.syst3ms.ysequence
 
 fun main() {
-    val seq = arrayOf(1,3,3)
-    val times = 3
+    val seq = arrayOf(1,4,3)
+    val times = 5
     val result = expand(seq, times)
 
     println(result[0].joinToString(",", "(", ")"))
@@ -46,8 +46,10 @@ fun expand(seq: Array<Int>, times: Int, forceOffset : Int? = null): Array<Array<
 
     // Check for diagonal expansion
     val lastRow = valueMat.last()
-    if (baseDifference > 1 &&
-            valueMat.getColumn(valueMat.width - 1).last() == baseDifference &&
+    val top = valueMat.getColumn(valueMat.width - 1).last()
+    if (top > 1 &&
+            baseDifference > 1 &&
+            top <= baseDifference &&
             lastRow.filterIndexed { j, e -> !(e == 0 || e >= lastRow.last() || j == valueMat.width - 1 || j > badRoot) }
                     .isEmpty()
     ) {
