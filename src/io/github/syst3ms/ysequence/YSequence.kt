@@ -1,7 +1,7 @@
 package io.github.syst3ms.ysequence
 
 fun main() {
-    val seq = arrayOf(1,4,3)
+    val seq = arrayOf(1,3,4,6)
     val times = 5
     val result = expand(seq, times)
 
@@ -25,13 +25,17 @@ fun expand(seq: Array<Int>, times: Int, forceOffset : Int? = null): Array<Array<
                 valueMat[row + 1][i] = 0
                 offsetMat[row][i] = 0
             } else {
-                val parentIndex = rowList.copyOfRange(row, i)
-                        .filterIndexed { j, _ -> !(row > 0 && j < i && j > i - offsetMat[row - 1][i]) }
-                        .indexOfLast { it < rowList[i] }
-                valueMat[row + 1][i] = rowList[i] - rowList[parentIndex]
-                offsetMat[row][i] = i - parentIndex
-                if (i == row + 1) {
-                    baseDifference = valueMat[row + 1][row + 1]
+                val parentIndex = findParentIndex(rowList.copyOfRange(0, i + 1), if (row > 0) i - offsetMat[row - 1][i] else null)
+                if (parentIndex == -1) {
+                    valueMat[row + 1][i] = 0
+                    offsetMat[row][i] = 0
+                } else {
+                    val diff = rowList[i] - rowList[parentIndex]
+                    valueMat[row + 1][i] = diff
+                    offsetMat[row][i] = i - parentIndex
+                    if (i == row + 1 || (parentIndex >= row && diff > 0 && diff < baseDifference)) {
+                        baseDifference = diff
+                    }
                 }
             }
         }
@@ -50,8 +54,7 @@ fun expand(seq: Array<Int>, times: Int, forceOffset : Int? = null): Array<Array<
     if (top > 1 &&
             baseDifference > 1 &&
             top <= baseDifference &&
-            lastRow.filterIndexed { j, e -> !(e == 0 || e >= lastRow.last() || j == valueMat.width - 1 || j > badRoot) }
-                    .isEmpty()
+            findParentIndex(lastRow, badRoot) == -1
     ) {
         // New diagonal root
         badRoot = valueMat.size - 2
@@ -131,6 +134,17 @@ fun expand(seq: Array<Int>, times: Int, forceOffset : Int? = null): Array<Array<
 
         return refillMatrix(valueMat, offsetMat)
     }
+}
+
+private fun findParentIndex(seq: Array<Int>, badRoot: Int?): Int {
+    for (i in (seq.lastIndex - 1) downTo 0) {
+        if (seq[i] == 0 || seq[i] >= seq.last() || badRoot != null && i > badRoot) {
+            continue
+        } else {
+            return i
+        }
+    }
+    return -1
 }
 
 private fun refillMatrix(valueMat: Array<Array<Int>>, offsetMat: Array<Array<Int>>): Array<Array<Int>> {
