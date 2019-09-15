@@ -1,7 +1,9 @@
 package io.github.syst3ms.ysequence
 
+import kotlin.math.min
+
 fun main() {
-    val seq = arrayOf(1, 3, 4, 7)
+    val seq = arrayOf(1,4,3)
     val times = 5
     val result = expand(seq, times)
 
@@ -110,7 +112,7 @@ fun expand(seq: Array<Int>, times: Int, forceOffset: Int? = null): Pair<Array<Ar
             // Copy offsets
             for (i in 1 until times) {
                 val offsetPart = copyOffset(offsetMat, badRoot, times - i)
-                tempOffset = tempOffset.pasteMatrix(offsetPart, shapeOffset.first * i, shapeOffset.second * i)
+                tempOffset = tempOffset.pasteMatrix(offsetPart, shapeOffset.second * i, shapeOffset.first * i)
             }
         } else {
             val subOffset = expand(valueMat[diagonalY - 1]
