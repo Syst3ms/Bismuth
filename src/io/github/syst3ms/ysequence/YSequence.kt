@@ -1,14 +1,14 @@
 package io.github.syst3ms.ysequence
 
 fun main() {
-    val seq = arrayOf(1,3,4,6)
+    val seq = arrayOf(1, 3, 4, 7)
     val times = 5
     val result = expand(seq, times)
 
-    println(result[0].joinToString(",", "(", ")"))
+    println(result.first[0].joinToString(",", "(", ")"))
 }
 
-fun expand(seq: Array<Int>, times: Int, forceOffset : Int? = null): Array<Array<Int>> {
+fun expand(seq: Array<Int>, times: Int, forceOffset: Int? = null): Pair<Array<Array<Int>>, Array<Array<Int>>> {
     var valueMat: Array<Array<Int>> = arrayOf(seq)
     var offsetMat: Array<Array<Int>> = arrayOf(Array(seq.size) { 0 })
 
@@ -33,7 +33,7 @@ fun expand(seq: Array<Int>, times: Int, forceOffset : Int? = null): Array<Array<
                     val diff = rowList[i] - rowList[parentIndex]
                     valueMat[row + 1][i] = diff
                     offsetMat[row][i] = i - parentIndex
-                    if (i == row + 1 || (parentIndex >= row && diff > 0 && diff < baseDifference)) {
+                    if (rowList[parentIndex] == 1 || (parentIndex >= row && diff > 0 && diff < baseDifference)) {
                         baseDifference = diff
                     }
                 }
@@ -64,9 +64,18 @@ fun expand(seq: Array<Int>, times: Int, forceOffset : Int? = null): Array<Array<
         val diagonal = mutableListOf<Int>()
         var x = 0
         var y = 0
+        var diagonalX = 1
+        var diagonalY = 1
         while (x < valueMat.width) {
-            diagonal.add(valueMat[y][x])
-            if (valueMat.getOrNull(y + 1)?.get(x + 1) ?: 0 > 0) {
+            val element = valueMat[y][x]
+            if (element == 1 && x == offsetMat.width - offsetMat[y].last() - 1) {
+                diagonal.clear()
+                shape.clear()
+                diagonalX = x + 1
+                diagonalY = y + 1
+            }
+            diagonal.add(element)
+            if (valueMat.getOrNull(y + 1)?.getOrNull(x + 1) ?: 0 > 0) {
                 shape.add(true)
                 y++
             } else {
@@ -79,36 +88,40 @@ fun expand(seq: Array<Int>, times: Int, forceOffset : Int? = null): Array<Array<
                 .fold(0 to 0) { a, e -> (a.first + e.first) to (a.second + e.second) }
 
         // Compute diagonal's expansion
-        val expandedDiagonal = expand(diagonal.toTypedArray(), times + 1, if (lastRow.none { it > 0 && it < lastRow.last()}) null else offsetMat[y - 1][x - 1] )
+        val expandedDiagonal = expand(diagonal.toTypedArray(), times + 1, if (lastRow.none { it > 0 && it < lastRow.last() }) null else offsetMat[y - 1][x - 1])
+        val newDiagonal = expandedDiagonal.first
                 .first()
                 .copyOfRange(0, shapeOffset.second * times + 1)
-        x = 1
-        y = 1
-        val newWidth = 1 + shapeOffset.second * times
-        val newHeight = 1 + shapeOffset.first * times
+        x = diagonalX
+        y = diagonalY
+        val newWidth = x + shapeOffset.second * times
+        val newHeight = y + shapeOffset.first * times
         valueMat = valueMat.resize(newWidth, newHeight)
-        for (i in 1 until expandedDiagonal.size) {
-            valueMat[y][x] = expandedDiagonal[i]
+        for (i in 1 until newDiagonal.size) {
+            valueMat[y][x] = newDiagonal[i]
             if (shape.dropLast(1)[i % (shape.size - 1)]) {
                 y++
             }
             x++
         }
-
-
-        // Copy offsets
-        val tempOffset = offsetMat.resize(valueMat.width, valueMat.size)
-        for (i in 0 until times) {
-            val offsetPart = copyOffset(offsetMat, badRoot, times - i)
-            for (j in 0 until offsetPart.size) {
-                for (k in 0 until offsetPart.width) {
-                    tempOffset[j + shapeOffset.first * i][k + shapeOffset.second * i] = offsetPart[j][k]
-                }
+        var tempOffset = copyOffset(offsetMat, badRoot, times)
+                .resize(valueMat.width, valueMat.size)
+        if (diagonalX == 1 && diagonalY == 1) {
+            // Copy offsets
+            for (i in 1 until times) {
+                val offsetPart = copyOffset(offsetMat, badRoot, times - i)
+                tempOffset = tempOffset.pasteMatrix(offsetPart, shapeOffset.first * i, shapeOffset.second * i)
             }
+        } else {
+            val subOffset = expand(valueMat[diagonalY - 1]
+                    .copyOfRange(diagonalX - 1, valueMat.width)
+                    .dropLastWhile { it == 0 }
+                    .toTypedArray(), times).second
+            tempOffset = tempOffset.pasteMatrix(subOffset, diagonalX - 1, diagonalY - 1)
         }
         offsetMat = tempOffset
 
-        return refillMatrix(valueMat, offsetMat)
+        return refillMatrix(valueMat, offsetMat) to offsetMat
     } else {
 
         // Copy offsets
@@ -132,8 +145,18 @@ fun expand(seq: Array<Int>, times: Int, forceOffset : Int? = null): Array<Array<
             }
         }
 
-        return refillMatrix(valueMat, offsetMat)
+        return refillMatrix(valueMat, offsetMat) to offsetMat
     }
+}
+
+private fun Array<Array<Int>>.pasteMatrix(part: Array<Array<Int>>, x: Int, y: Int): Array<Array<Int>> {
+    assert(x + part.width <= width && y + part.size <= size)
+    for (i in 0 until part.size) {
+        for (j in 0 until part.width) {
+            this[y + i][x + j] = part[i][j]
+        }
+    }
+    return this
 }
 
 private fun findParentIndex(seq: Array<Int>, badRoot: Int?): Int {
@@ -150,7 +173,7 @@ private fun findParentIndex(seq: Array<Int>, badRoot: Int?): Int {
 private fun refillMatrix(valueMat: Array<Array<Int>>, offsetMat: Array<Array<Int>>): Array<Array<Int>> {
     for (i in (valueMat.size - 1) downTo 0) {
         for (j in 0 until valueMat.width) {
-            valueMat[i][j] = (valueMat.getOrNull(i+1)?.get(j) ?: 0) + valueMat[i][j - offsetMat[i][j]]
+            valueMat[i][j] = (valueMat.getOrNull(i + 1)?.get(j) ?: 0) + valueMat[i][j - offsetMat[i][j]]
         }
     }
     return valueMat
@@ -173,7 +196,7 @@ private fun copyOffset(offsetMat: Array<Array<Int>>, badRoot: Int, times: Int): 
 
 fun Array<Array<Int>>.getColumn(i: Int) = this.map { it[i] }.toTypedArray()
 
-val Array<Array<Int>>.width : Int
+val Array<Array<Int>>.width: Int
     get() = this[0].size
 
 fun Array<Array<Int>>.resize(newWidth: Int, newHeight: Int): Array<Array<Int>> {
@@ -186,7 +209,7 @@ fun Array<Array<Int>>.resize(newWidth: Int, newHeight: Int): Array<Array<Int>> {
         result = result.dropLast(height - newHeight).toTypedArray()
     }
     if (width < newWidth) {
-        result = result.map { it.plus(Array(newWidth - width) {0}.toList()) }.toTypedArray()
+        result = result.map { it.plus(Array(newWidth - width) { 0 }.toList()) }.toTypedArray()
     } else if (newWidth < width) {
         result = result.map { it.dropLast(width - newWidth).toTypedArray() }.toTypedArray()
     }
