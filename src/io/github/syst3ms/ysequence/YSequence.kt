@@ -4,7 +4,7 @@ import kotlin.system.exitProcess
 
 fun main() {
     println("Please input a sequence of the form (1,a,...,z)[n] :")
-    val input = readLine()!!
+    val input = "(1,3,4,7,11,18)[5]"
     val match = """\((\d+(?:,\d+)*)\)\[(\d+)]""".toRegex().matchEntire(input)
     if (match == null) {
         println("Invalid input")
@@ -61,7 +61,7 @@ fun expand(seq: Array<Int>, times: Int, forceOffset: Int? = null): ExpansionResu
     }
 
     // Find bad root
-    val badRoot = valueMat.width - offsetMat[valueMat.size - 2][valueMat.width - 1] - 1
+    var badRoot = valueMat.width - offsetMat[valueMat.size - 2][valueMat.width - 1] - 1
 
     // Check for diagonal expansion
     val lastRow = valueMat.last()
@@ -84,6 +84,7 @@ fun expand(seq: Array<Int>, times: Int, forceOffset: Int? = null): ExpansionResu
             if (element == 1 && x == offsetMat.width - offsetMat[y].last() - 1) {
                 diagonal.clear()
                 shape.clear()
+                badRoot = x
                 diagonalX = x + 1
                 diagonalY = y + 1
             }
@@ -119,11 +120,11 @@ fun expand(seq: Array<Int>, times: Int, forceOffset: Int? = null): ExpansionResu
             x++
         }
         // Copy offsets
-        var tempOffset = copyOffset(offsetMat, badRoot, times * shapeOffset.second)
+        var tempOffset = copyOffset(offsetMat, badRoot, times * shapeOffset.second + 1)
                 .resize(valueMat.width, valueMat.size)
         if (diagonalX == 1 && diagonalY == 1) {
             for (i in 1 until times) {
-                val offsetPart = copyOffset(offsetMat, badRoot, (times - i)  * shapeOffset.second)
+                val offsetPart = copyOffset(offsetMat, badRoot, (times - i + 1)  * shapeOffset.second)
                 tempOffset = tempOffset.pasteMatrix(offsetPart, shapeOffset.second * i, shapeOffset.first * i)
             }
         } else {
