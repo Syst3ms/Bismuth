@@ -1,4 +1,4 @@
-package io.github.syst3ms.ysequence
+package io.github.syst3ms.bismuth
 
 import kotlin.system.exitProcess
 
