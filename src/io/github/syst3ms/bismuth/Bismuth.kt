@@ -1,3 +1,4 @@
+@file:JvmName("Bismuth")
 package io.github.syst3ms.bismuth
 
 import kotlin.system.exitProcess
@@ -5,8 +6,11 @@ import kotlin.system.exitProcess
 typealias Matrix = Array<Array<Int>>
 
 fun main() {
-    //println("Please input a sequence of the form (1,a,...,z)[n] :")
-    val input = "(1,3,3)[4]"
+    println("Please input a sequence of the form (1,a,...,z)[n] :")
+    val input = readLine() ?: run {
+        println("Invalid input")
+        exitProcess(1)
+    }
     val match = """\((\d+(?:,\d+)*)\)\[(\d+)]""".toRegex().matchEntire(input)
     if (match == null) {
         println("Invalid input")
@@ -31,13 +35,13 @@ fun expand(seq: Array<Int>, times: Int): ExpansionResult {
 
     // Calculate differences and offsets
     var row = 0
-    while (findParentIndex(valueMat.last(), if (row == 0) null else offsetMat.badRoot) != -1) {
+    while (findParentIndex(valueMat.last(), if (row == 0) null else offsetMat.badRoot) != null) {
         valueMat = valueMat.resize(valueMat.width, valueMat.size + 1)
         offsetMat = offsetMat.resize(offsetMat.width, offsetMat.size + 1)
         for (i in 0 until valueMat.width) {
             val rowList = valueMat[row]
             val parentIndex = findParentIndex(rowList.copyOfRange(0, i + 1), if (row > 0) i - offsetMat[row - 1][i] else null)
-            if (rowList[i] <= 1 || parentIndex == -1) {
+            if (parentIndex == null) {
                 valueMat[row + 1][i] = 0
                 offsetMat[row][i] = 0
             } else {
@@ -76,9 +80,9 @@ fun expand(seq: Array<Int>, times: Int): ExpansionResult {
 
         // Calculate the new diagonal
         val roots = shape.mapIndexed { i, _ -> shape.subList(0, i).fold(0 to 0, Pair<Int, Int>::plus) }
-        val expandedDiagonal = expand(diagonal.toTypedArray(), times + 1)
-        val newShape = shape.copy(expandedDiagonal.badRoot, times)
-        val newRoots = roots.copy(expandedDiagonal.badRoot, times)
+        val expandedDiagonal = expand(diagonal.toTypedArray(), times + 2)
+        val newShape = shape.copy(expandedDiagonal.badRoot, times + 1)
+        val newRoots = roots.copy(expandedDiagonal.badRoot, times + 1)
         val newBounds = newShape.unzip()
                 .run { first.sum() to second.sum() }
         val newDiagonal = expandedDiagonal.valueMat.first()
@@ -114,12 +118,12 @@ fun expand(seq: Array<Int>, times: Int): ExpansionResult {
         val badPartWidth = (valueMat.width - badRoot - 1)
         val newWidth = badRoot + badPartWidth * times
         valueMat = valueMat.resize(newWidth, valueMat.size)
-        val noCopy = valueMat.getColumn(badRoot).indexOfLast { it > 0 }
-        for (i in 0 until times) {
+        for (i in 1 until times) {
             for (j in 0 until badPartWidth) {
                 for (k in valueMat.indices) {
-                    if (offsetMat[k][badRoot + j] == 0 && !(j == 0 && k == noCopy)) {
-                        valueMat[k][badRoot + j + badPartWidth * i] = valueMat[k][badRoot + j]
+                    val x = badRoot + j
+                    if (offsetMat[k][x] == 0 && !(k > 0 && x - offsetMat[k - 1][x] < badRoot)) {
+                        valueMat[k][x + badPartWidth * i] = valueMat[k][x]
                     }
                 }
             }
@@ -145,7 +149,7 @@ private fun Matrix.paste(part: Matrix, x: Int, y: Int): Matrix {
     return this
 }
 
-private fun findParentIndex(seq: Array<Int>, badRoot: Int?): Int {
+private fun findParentIndex(seq: Array<Int>, badRoot: Int?): Int? {
     for (i in (seq.lastIndex - 1) downTo 0) {
         if (seq[i] == 0 || seq[i] >= seq.last() || badRoot != null && i > badRoot) {
             continue
@@ -153,7 +157,7 @@ private fun findParentIndex(seq: Array<Int>, badRoot: Int?): Int {
             return i
         }
     }
-    return -1
+    return null
 }
 
 private fun refillMatrix(valueMat: Matrix, offsetMat: Matrix): Matrix {

@@ -33,8 +33,10 @@ compileKotlin {
 }
 
 jar {
+    baseName = "Bismuth"
+
     manifest {
-        attributes 'Main-Class': 'io.github.syst3ms.bismuth.YSequenceKt'
+        attributes 'Main-Class': 'io.github.syst3ms.bismuth.Bismuth'
     }
 
     from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
