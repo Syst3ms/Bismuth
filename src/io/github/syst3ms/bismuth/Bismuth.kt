@@ -24,7 +24,7 @@ fun main() {
     if (seq.last() == 1) {
         println(seq.dropLast(1).joinToString(",", "(", ")") + "[${times + 1}]")
     } else {
-        val result = expand(seq, times)
+        val result = expand(seq, times + 1)
         println(result.valueMat[0].joinToString(",", "(", ")") + "[$times]")
     }
 }
@@ -43,7 +43,7 @@ fun expand(seq: Array<Int>, times: Int): ExpansionResult {
             val parentIndex = findParentIndex(rowList.copyOfRange(0, i + 1), if (row > 0) i - offsetMat[row - 1][i] else null)
             if (parentIndex == null) {
                 valueMat[row + 1][i] = 0
-                offsetMat[row][i] = 0
+                offsetMat[row][i] = if (rowList[i] == 0 || rowList.copyOfRange(0, i).all { it == 0 }) 0 else -rowList[i]
             } else {
                 val diff = rowList[i] - rowList[parentIndex]
                 valueMat[row + 1][i] = diff
@@ -67,10 +67,22 @@ fun expand(seq: Array<Int>, times: Int): ExpansionResult {
         while (coords.first < valueMat.width) {
             diagonal.add(valueMat[coords.second][coords.first])
             coords += if (valueMat.getOrNull(coords.second + 1)?.getOrNull(coords.first + 1) ?: 0 > 0) {
-                val root = offsetMat[coords.second].mapIndexed { i, e -> i - e }
-                        .indexOfLast { it == coords.first } - coords.first
-                shape.add(root to 1)
-                root to 1
+                val children = offsetMat[coords.second]
+                        .copyOfRange(coords.first + 1, offsetMat.width)
+                        .mapIndexed { i, e -> i to i + 1 - e  }
+                        .filter { it.second == 0 }
+                if (children.size == offsetMat[coords.second].size - coords.first - 1) {
+                    val diagonalPart = listOf(1 to 1, 1 to 0).copy(1, children.size - 1)
+                    shape += diagonalPart
+                    for (i in 0 until diagonalPart.size - 1) {
+                        diagonal.add(valueMat[coords.second + 1][coords.first + i + 1])
+                    }
+                    diagonalPart.reduce { a, e -> a + e }
+                } else {
+                    val root = children.last().first + 1
+                    shape.add(root to 1)
+                    root to 1
+                }
             } else {
                 shape.add(1 to 0)
                 1 to 0
@@ -80,9 +92,9 @@ fun expand(seq: Array<Int>, times: Int): ExpansionResult {
 
         // Calculate the new diagonal
         val roots = shape.mapIndexed { i, _ -> shape.subList(0, i).fold(0 to 0, Pair<Int, Int>::plus) }
-        val expandedDiagonal = expand(diagonal.toTypedArray(), times + 2)
-        val newShape = shape.copy(expandedDiagonal.badRoot, times + 1)
-        val newRoots = roots.copy(expandedDiagonal.badRoot, times + 1)
+        val expandedDiagonal = expand(diagonal.toTypedArray(), times + 1)
+        val newShape = shape.copy(expandedDiagonal.badRoot, times)
+        val newRoots = roots.copy(expandedDiagonal.badRoot, times)
         val newBounds = newShape.unzip()
                 .run { first.sum() to second.sum() }
         val newDiagonal = expandedDiagonal.valueMat.first()
@@ -97,7 +109,7 @@ fun expand(seq: Array<Int>, times: Int): ExpansionResult {
             val valuePart = valueMat.slice(r.first, r.second, r.first + s.first, r.second + s.second)
             valuePart[0][0] = newDiagonal[i]
             tempValue = tempValue.paste(valuePart, coords.first, coords.second)
-            var offsetPart = offsetMat.slice(r.first, r.second, r.first + s.first, r.second + s.second)
+            var offsetPart = offsetMat.slice(r.first, r.second, offsetMat.width - 1, r.second + s.second)
             if (s.second > 0) {
                 offsetPart = offsetPart.copyOffset(offsetPart.badRoot, size = tempOffset.width)
             }
@@ -163,7 +175,8 @@ private fun findParentIndex(seq: Array<Int>, badRoot: Int?): Int? {
 private fun refillMatrix(valueMat: Matrix, offsetMat: Matrix): Matrix {
     for (i in (valueMat.size - 1) downTo 0) {
         for (j in 0 until valueMat.width) {
-            valueMat[i][j] = (valueMat.getOrNull(i + 1)?.get(j) ?: 0) + valueMat[i][j - offsetMat[i][j]]
+            val offset = offsetMat[i][j]
+            valueMat[i][j] = if (offset < 0) -offset else (valueMat.getOrNull(i + 1)?.get(j) ?: 0) + valueMat[i][j - offset]
         }
     }
     return valueMat
@@ -189,8 +202,6 @@ private fun Matrix.copyOffset(badRoot: Int, times: Int? = null, size: Int? = nul
     }
     return result
 }
-
-fun Matrix.getColumn(i: Int) = this.map { it[i] }.toTypedArray()
 
 fun <T : Any> List<T>.copy(root: Int, times: Int): List<T> {
     val new = this.subList(0, root).toMutableList()
