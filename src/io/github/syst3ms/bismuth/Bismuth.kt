@@ -103,6 +103,9 @@ fun expand(seq: Array<Int>, times: Int): ExpansionResult {
         coords = 0 to 0
         var tempValue = valueMat.resize(newBounds.first + 1, newBounds.second + 1)
         var tempOffset = offsetMat.resize(newBounds.first + 1, newBounds.second + 1)
+        val (badX, badY) = roots[expandedDiagonal.badRoot]
+        val badPartOffset = offsetMat.slice(badX, badY, offsetMat.width - 1, badY)
+                .copyOffset(0, times)
         for (i in newShape.indices) {
             val s = newShape[i]
             val r = newRoots[i]
@@ -111,7 +114,8 @@ fun expand(seq: Array<Int>, times: Int): ExpansionResult {
             tempValue = tempValue.paste(valuePart, coords.first, coords.second)
             var offsetPart = offsetMat.slice(r.first, r.second, offsetMat.width - 1, r.second + s.second)
             if (s.second > 0) {
-                offsetPart = offsetPart.copyOffset(offsetPart.badRoot, size = tempOffset.width)
+                offsetPart = offsetPart.resize(tempOffset.width - coords.first, offsetPart.size)
+                        .paste(badPartOffset.slice(1, 0, badPartOffset.width - 1, 0), offsetPart.width, 0)
             }
             tempOffset = tempOffset.paste(offsetPart, coords.first, coords.second)
             coords += s
