@@ -113,9 +113,11 @@ fun expand(seq: Array<Int>, times: Int): ExpansionResult {
             valuePart[0][0] = newDiagonal[i]
             tempValue = tempValue.paste(valuePart, coords.first, coords.second)
             var offsetPart = offsetMat.slice(r.first, r.second, offsetMat.width - 1, r.second + s.second)
-            if (s.second > 0) {
+            if (coords.second >= badY && s.second > 0) {
                 offsetPart = offsetPart.resize(tempOffset.width - coords.first, offsetPart.size)
                         .paste(badPartOffset.slice(1, 0, badPartOffset.width - 1, 0), offsetPart.width, 0)
+            } else if (s.second > 0) {
+                offsetPart = offsetPart.copyOffset(badX - coords.first, times)
             }
             tempOffset = tempOffset.paste(offsetPart, coords.first, coords.second)
             coords += s
