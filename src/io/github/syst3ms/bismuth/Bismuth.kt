@@ -35,12 +35,16 @@ fun expand(seq: Array<Int>, times: Int): ExpansionResult {
 
     // Calculate differences and offsets
     var row = 0
-    while (findParentIndex(valueMat.last(), if (row == 0) null else offsetMat.badRoot) != null) {
+    while (findParentIndex(valueMat.last(), offsetMat.last(), if (row == 0) null else offsetMat.badRoot) != null) {
         valueMat = valueMat.resize(valueMat.width, valueMat.size + 1)
         offsetMat = offsetMat.resize(offsetMat.width, offsetMat.size + 1)
         for (i in 0 until valueMat.width) {
             val rowList = valueMat[row]
-            val parentIndex = findParentIndex(rowList.copyOfRange(0, i + 1), if (row > 0) i - offsetMat[row - 1][i] else null)
+            val parentIndex = findParentIndex(
+                    rowList.copyOfRange(0, i + 1),
+                    offsetMat[row].copyOfRange(0, i + 1),
+                    if (row > 0) i - offsetMat[row - 1][i].coerceAtLeast(0) else null
+            )
             if (parentIndex == null) {
                 valueMat[row + 1][i] = 0
                 offsetMat[row][i] = if (rowList[i] == 0 || rowList.copyOfRange(0, i).all { it == 0 }) 0 else -rowList[i]
@@ -167,13 +171,14 @@ private fun Matrix.paste(part: Matrix, x: Int, y: Int): Matrix {
     return this
 }
 
-private fun findParentIndex(seq: Array<Int>, badRoot: Int?): Int? {
-    for (i in (seq.lastIndex - 1) downTo 0) {
-        if (seq[i] == 0 || seq[i] >= seq.last() || badRoot != null && i > badRoot) {
-            continue
-        } else {
+private fun findParentIndex(seq: Array<Int>, currentOffset: Array<Int>, badRoot: Int?): Int? {
+    var i = badRoot ?: (seq.lastIndex - 1)
+    val current = seq.last()
+    while (i >= 0) {
+        if (seq[i] in 1 until current) {
             return i
         }
+        i -= currentOffset[i].coerceAtLeast(1)
     }
     return null
 }
