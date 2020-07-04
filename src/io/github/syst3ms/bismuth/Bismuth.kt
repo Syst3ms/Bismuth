@@ -206,7 +206,8 @@ private fun Matrix.copyOffset(badRoot: Int, times: Int? = null, size: Int? = nul
             if (target >= newWidth)
                 break
             for (k in result.indices) {
-                result[k][target] = result[k][badRoot + j + 1]
+                val toCopy = result[k][badRoot + j + 1]
+                result[k][target] = toCopy + (if (j - toCopy + 1 < 0) copyWidth * i else 0)
             }
         }
         i++
