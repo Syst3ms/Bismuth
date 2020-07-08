@@ -29,7 +29,7 @@ fun main() {
     }
 }
 
-fun expand(seq: Array<Int>, times: Int): ExpansionResult {
+fun expand(seq: Array<Int>, times: Int, lastElementOffset: Int? = null): ExpansionResult {
     var valueMat: Matrix = arrayOf(seq)
     var offsetMat: Matrix = arrayOf(Array(seq.size) { 0 })
 
@@ -40,11 +40,11 @@ fun expand(seq: Array<Int>, times: Int): ExpansionResult {
         offsetMat = offsetMat.resize(offsetMat.width, offsetMat.size + 1)
         for (i in 0 until valueMat.width) {
             val rowList = valueMat[row]
-            val parentIndex = findParentIndex(
-                    rowList.copyOfRange(0, i + 1),
-                    offsetMat[row].copyOfRange(0, i + 1),
-                    if (row > 0) i - offsetMat[row - 1][i].coerceAtLeast(0) else null
-            )
+            val parentIndex = if (lastElementOffset != null && row == 0 && i == valueMat.width - 1) {
+                i - lastElementOffset
+            } else {
+                findParentIndex(rowList.copyOfRange(0, i + 1), offsetMat[row].copyOfRange(0, i + 1), if (row > 0) i - offsetMat[row - 1][i].coerceAtLeast(0) else null)
+            }
             if (parentIndex == null) {
                 valueMat[row + 1][i] = 0
                 offsetMat[row][i] = if (rowList[i] == 0 || rowList.copyOfRange(0, i).all { it == 0 }) 0 else -rowList[i]
@@ -66,37 +66,35 @@ fun expand(seq: Array<Int>, times: Int): ExpansionResult {
 
         // Calculate diagonal shape & offsets
         val shape = mutableListOf<Pair<Int, Int>>()
+        val roots = mutableListOf<Pair<Int, Int>>()
         val diagonal = mutableListOf<Int>()
         var coords = 0 to 0
+        var diagonalForcedOffset : Int? = null
         while (coords.first < valueMat.width) {
             diagonal.add(valueMat[coords.second][coords.first])
             coords += if (valueMat.getOrNull(coords.second + 1)?.getOrNull(coords.first + 1) ?: 0 > 0) {
-                val children = offsetMat[coords.second]
-                        .copyOfRange(coords.first + 1, offsetMat.width)
-                        .mapIndexed { i, e -> i to i + 1 - e  }
-                        .filter { it.second == 0 }
-                if (children.size == offsetMat[coords.second].size - coords.first - 1) {
-                    val diagonalPart = listOf(1 to 1, 1 to 0).copy(1, children.size - 1)
-                    shape += diagonalPart
-                    for (i in 0 until diagonalPart.size - 1) {
-                        diagonal.add(valueMat[coords.second + 1][coords.first + i + 1])
-                    }
-                    diagonalPart.reduce { a, e -> a + e }
-                } else {
-                    val root = children.last().first + 1
-                    shape.add(root to 1)
-                    root to 1
-                }
+                shape.add(1 to 1)
+                roots.add(coords)
+                1 to 1
             } else {
-                shape.add(1 to 0)
-                1 to 0
+                val interval = valueMat[coords.second].copyOfRange(coords.first + 1, valueMat.width).takeWhile { it == 0 }.size + 1
+                shape.add(interval to 0)
+                roots.add(coords)
+                val off = offsetMat[coords.second - 1][coords.first]
+                val pointedRoot = roots.indexOfFirst { it.first == coords.first - off }
+                diagonalForcedOffset = if (pointedRoot >= 0 && shape[pointedRoot].second == 1) {
+                    diagonal.size - pointedRoot - 1
+                } else {
+                    null
+                }
+                interval to 0
             }
         }
         shape.removeAt(shape.lastIndex)
+        roots.removeAt(roots.lastIndex)
 
         // Calculate the new diagonal
-        val roots = shape.mapIndexed { i, _ -> shape.subList(0, i).fold(0 to 0, Pair<Int, Int>::plus) }
-        val expandedDiagonal = expand(diagonal.toTypedArray(), times + 1)
+        val expandedDiagonal = expand(diagonal.toTypedArray(), times + 1, diagonalForcedOffset)
         val newShape = shape.copy(expandedDiagonal.badRoot, times)
         val newRoots = roots.copy(expandedDiagonal.badRoot, times)
         val newBounds = newShape.unzip()
